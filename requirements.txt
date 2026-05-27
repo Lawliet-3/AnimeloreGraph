@@ -1,0 +1,13 @@
+# Core graph & ML libraries
+networkx>=3.0
+pydantic>=2.0
+
+# LLM extraction layer
+openai>=1.0
+instructor>=1.0
+
+# Vector stores (optional backends)
+qdrant-client>=1.7
+
+# Embeddings (optional — for OpenAI embeddings)
+tiktoken>=0.5
