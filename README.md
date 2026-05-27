@@ -98,6 +98,23 @@ pipeline.save("knowledge_graph.json")
 pipeline2 = AnimeloreGraphPipeline.load("knowledge_graph.json")
 ```
 
+## Sitemap Scraping & Ingestion
+
+```python
+from animelore import AnimeloreGraphPipeline, FandomSitemapScraper, Universe
+
+pipeline = AnimeloreGraphPipeline(openai_api_key="sk-...")
+
+# Ingest pages from the universe sitemap (NS_0 only, URL sanitation applied)
+summaries = pipeline.ingest_from_sitemap(
+    universe=Universe.one_piece,
+    max_pages=25,  # optional cap
+)
+
+# Register aliases for entity resolution
+pipeline.register_alias("one_piece::monkey_d_luffy", "Straw Hat Captain")
+```
+
 ## Tests
 
 ```bash
