@@ -98,6 +98,18 @@ pipeline.save("knowledge_graph.json")
 pipeline2 = AnimeloreGraphPipeline.load("knowledge_graph.json")
 ```
 
+## Local semantic search demo
+
+Run the in-memory semantic search demo script:
+
+```bash
+export OPENAI_API_KEY="sk-..."
+python run_semantic.py
+```
+
+This uses the in-memory vector store with OpenAI embeddings and the default
+LLM extraction pipeline.
+
 ## Sitemap Scraping & Ingestion
 
 ```python
