@@ -11,3 +11,8 @@ qdrant-client>=1.7
 
 # Embeddings (optional — for OpenAI embeddings)
 tiktoken>=0.5
+
+# Scraping + HTML processing
+requests>=2.31
+beautifulsoup4>=4.12
+markdownify>=0.12

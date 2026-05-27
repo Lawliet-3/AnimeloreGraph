@@ -12,10 +12,12 @@ import logging
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
+from .entity_resolution import AliasResolver
 from .embeddings import InMemoryVectorStore, VectorStore, create_vector_store
 from .extractor import KnowledgeExtractor
 from .graph_store import GraphStore
 from .models import Universe
+from .scraper import FandomSitemapScraper, SITEMAP_INDEX_URLS
 from .query_engine import (
     AggregateResult,
     PathResult,
@@ -65,6 +67,7 @@ class AnimeloreGraphPipeline:
         extractor: Optional[KnowledgeExtractor] = None,
         embed_fn: Optional[Callable[[str], List[float]]] = None,
         openai_api_key: Optional[str] = None,
+        alias_resolver: Optional[AliasResolver] = None,
     ) -> None:
         self._graph = graph_store or GraphStore()
         self._vectors: VectorStore = vector_store or InMemoryVectorStore()
@@ -72,6 +75,7 @@ class AnimeloreGraphPipeline:
             api_key=openai_api_key
         )
         self._embed_fn = embed_fn
+        self._alias_resolver = alias_resolver or AliasResolver()
         self._query_engine = QueryEngine(
             graph_store=self._graph,
             vector_store=self._vectors,
@@ -108,12 +112,15 @@ class AnimeloreGraphPipeline:
             Summary with keys ``'nodes_added'`` and ``'edges_added'``.
         """
         result = self._extractor.extract(text, universe)
-        nodes, relationships = self._extractor.extraction_to_graph_objects(result)
+        nodes, relationships = self._extractor.extraction_to_graph_objects(
+            result, alias_resolver=self._alias_resolver
+        )
 
         nodes_added = 0
         for node in nodes:
             existed = self._graph.has_node(node.id)
             self._graph.add_node(node)
+            self._alias_resolver.register_node(node)
             if not existed:
                 nodes_added += 1
                 if auto_index and self._embed_fn is not None:
@@ -159,6 +166,56 @@ class AnimeloreGraphPipeline:
             if isinstance(universe, str):
                 universe = Universe(universe)
             summary = self.ingest(text=item["text"], universe=universe)
+            summaries.append(summary)
+        return summaries
+
+    def register_alias(self, node_id: str, alias: str) -> None:
+        """
+        Register a manual alias for an existing node ID.
+
+        Raises ``ValueError`` if the node does not exist in the graph.
+        """
+        if not self._graph.has_node(node_id):
+            raise ValueError(f"Cannot register alias; node '{node_id}' not found.")
+        universe = Universe(node_id.split("::")[0])
+        self._alias_resolver.register(universe, alias, node_id)
+
+    def ingest_from_sitemap(
+        self,
+        universe: Universe,
+        index_url: Optional[str] = None,
+        auto_index: bool = False,
+        max_pages: Optional[int] = None,
+        scraper: Optional[FandomSitemapScraper] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Discover and ingest wiki pages from a Fandom sitemap index.
+
+        Parameters
+        ----------
+        universe:
+            Universe the pages belong to.
+        index_url:
+            Sitemap index URL. Defaults to the universe-specific constant.
+        auto_index:
+            Whether to embed new nodes into the vector store.
+        max_pages:
+            Optional cap on the number of pages to ingest.
+        scraper:
+            Custom scraper instance (defaults to ``FandomSitemapScraper``).
+        """
+        scraper = scraper or FandomSitemapScraper()
+        sitemap_url = index_url or SITEMAP_INDEX_URLS[universe]
+        urls = scraper.discover_article_urls(sitemap_url)
+        if max_pages is not None:
+            urls = urls[:max_pages]
+        summaries: List[Dict[str, Any]] = []
+        for url in urls:
+            markdown = scraper.fetch_article_markdown(url)
+            if not markdown:
+                continue
+            summary = self.ingest(text=markdown, universe=universe, auto_index=auto_index)
+            summary["url"] = url
             summaries.append(summary)
         return summaries
 
@@ -237,6 +294,11 @@ class AnimeloreGraphPipeline:
     def graph(self) -> GraphStore:
         """Access to the underlying ``GraphStore``."""
         return self._graph
+
+    @property
+    def alias_resolver(self) -> AliasResolver:
+        """Access to the alias resolver used for entity resolution."""
+        return self._alias_resolver
 
     @property
     def query_engine(self) -> QueryEngine:

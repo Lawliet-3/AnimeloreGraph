@@ -12,6 +12,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from animelore.entity_resolution import AliasResolver
 from animelore.extractor import KnowledgeExtractor
 from animelore.models import (
     ExtractionResult,
@@ -157,6 +158,38 @@ class TestExtractionToGraphObjects:
         nodes, rels = extractor.extraction_to_graph_objects(result)
         assert nodes == []
         assert rels == []
+
+    def test_alias_resolution_redirects_relationships(self):
+        extractor = self._extractor()
+        resolver = AliasResolver()
+        resolver.register(
+            Universe.one_piece,
+            "Straw Hat Pirates",
+            "one_piece::straw_hat_pirates",
+        )
+        resolver.register(
+            Universe.one_piece,
+            "Straw Hat",
+            "one_piece::straw_hat_pirates",
+        )
+        result = ExtractionResult(
+            universe=Universe.one_piece,
+            source_text="Luffy is a member of the Straw Hat.",
+            triplets=[
+                _make_triplet(
+                    "Luffy",
+                    NodeType.character,
+                    RelationType.member_of,
+                    "Straw Hat",
+                    NodeType.faction,
+                )
+            ],
+        )
+        nodes, rels = extractor.extraction_to_graph_objects(result, alias_resolver=resolver)
+        node_ids = {node.id for node in nodes}
+        assert "one_piece::luffy" in node_ids
+        assert "one_piece::straw_hat_pirates" not in node_ids
+        assert rels[0].target_id == "one_piece::straw_hat_pirates"
 
 
 # ---------------------------------------------------------------------------

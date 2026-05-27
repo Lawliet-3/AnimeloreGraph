@@ -15,6 +15,7 @@ from typing import List, Optional
 
 from pydantic import BaseModel, Field
 
+from .entity_resolution import AliasResolver
 from .models import (
     AbilityNode,
     BaseNode,
@@ -189,6 +190,7 @@ class KnowledgeExtractor:
     def extraction_to_graph_objects(
         self,
         result: ExtractionResult,
+        alias_resolver: Optional[AliasResolver] = None,
     ) -> tuple[list[BaseNode], list[Relationship]]:
         """
         Convert an ``ExtractionResult`` into concrete ``BaseNode`` instances
@@ -210,6 +212,10 @@ class KnowledgeExtractor:
         }
 
         def _get_or_create(name: str, node_type: NodeType) -> str:
+            if alias_resolver is not None:
+                resolved = alias_resolver.resolve(universe, name)
+                if resolved:
+                    return resolved
             nid = build_node_id(universe, name)
             if nid not in nodes:
                 node_cls = _type_to_cls[node_type]

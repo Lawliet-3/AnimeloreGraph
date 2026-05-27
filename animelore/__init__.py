@@ -11,6 +11,7 @@ Public API surface:
 """
 
 from .embeddings import InMemoryVectorStore, VectorStore, create_vector_store
+from .entity_resolution import AliasResolver
 from .extractor import KnowledgeExtractor
 from .graph_store import GraphStore
 from .models import (
@@ -30,6 +31,7 @@ from .models import (
 )
 from .pipeline import AnimeloreGraphPipeline
 from .query_engine import AggregateResult, PathResult, QueryEngine, SemanticResult
+from .scraper import FandomSitemapScraper, SITEMAP_INDEX_URLS
 
 __all__ = [
     # Pipeline
@@ -38,6 +40,7 @@ __all__ = [
     "GraphStore",
     "QueryEngine",
     "KnowledgeExtractor",
+    "AliasResolver",
     # Embeddings
     "VectorStore",
     "InMemoryVectorStore",
@@ -56,6 +59,9 @@ __all__ = [
     "ExtractedTriplet",
     "ExtractionResult",
     "build_node_id",
+    # Scraper utilities
+    "FandomSitemapScraper",
+    "SITEMAP_INDEX_URLS",
     # Query result types
     "PathResult",
     "SemanticResult",
